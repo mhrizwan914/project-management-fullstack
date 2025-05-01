@@ -13,16 +13,15 @@ const user_schema = new Schema(
   {
     username: {
       type: String,
-      unique: true,
-      trim: true,
       required: true,
+      trim: true,
       lowercase: true,
     },
     email: {
       type: String,
+      required: true,
       unique: true,
       trim: true,
-      required: true,
       lowercase: true,
     },
     password: {
@@ -96,7 +95,7 @@ user_schema.methods.generate_refresh_token = function () {
   );
 };
 
-user_schema.methods.generate_temporary_token = async function () {
+user_schema.methods.generate_temporary_token = function () {
   const un_hash_token = crypto.randomBytes(20).toString("hex");
   const hash_token = crypto.createHash("sha256").update(un_hash_token).digest("hex");
   const token_expiry = Date.now() + 20 * 60 * 1000;

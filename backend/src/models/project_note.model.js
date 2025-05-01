@@ -8,7 +8,7 @@ const project_note_schema = new Schema(
       ref: "project",
       required: true,
     },
-    project_admin: {
+    user: {
       type: Schema.Types.ObjectId,
       ref: "user",
       required: true,
@@ -16,6 +16,7 @@ const project_note_schema = new Schema(
     content: {
       type: String,
       required: true,
+      trim: true,
     },
   },
   {
