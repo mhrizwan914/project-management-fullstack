@@ -1,7 +1,7 @@
 // Express Validator
 import { body } from "express-validator";
 
-export default function user_reset_password_validator() {
+export default function user_password_validator() {
   return [
     body("password")
       .notEmpty()

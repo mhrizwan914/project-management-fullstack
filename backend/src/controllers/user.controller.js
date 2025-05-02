@@ -11,6 +11,8 @@ import {
 import { User } from "../models/user.model.js";
 // Node
 import crypto from "crypto";
+// JWT
+import jwt from "jsonwebtoken";
 
 // Register
 export const user_register = async_handler(async function (req, res) {
@@ -23,7 +25,7 @@ export const user_register = async_handler(async function (req, res) {
   // Check existing user
   const is_user = await User.findOne({ email });
   if (is_user) {
-    res.status(409).json(new api_response(409, {}, "User might be exist"));
+    throw new api_error(403, "User is already exsist");
   }
   // Create user
   const user = await User.create({
@@ -47,11 +49,16 @@ export const user_register = async_handler(async function (req, res) {
         `http://localhost:8000/api/v1/user/verify/${token.un_hash_token}`,
       ),
     });
-    return res.status(201).json(new api_response(201, {}, "User registered successfully"));
+    return res
+      .status(201)
+      .json(
+        new api_response(201, {}, "User registered successfully and verification email is sent"),
+      );
   } catch (error) {
-    throw new api_error(500, `${error?.message}`, error);
+    throw new api_error(202, "User registered, but failed to send verification email.", error);
   }
 });
+
 // Verify
 export const user_verify = async_handler(async function (req, res) {
   // Get token
@@ -74,6 +81,7 @@ export const user_verify = async_handler(async function (req, res) {
   // Send response
   return res.status(200).json(new api_response(200, {}, "User email verified successfully"));
 });
+
 // Forgot password
 export const user_forgot_password = async_handler(async function (req, res) {
   // Get email
@@ -85,7 +93,7 @@ export const user_forgot_password = async_handler(async function (req, res) {
   // Find email
   const user = await User.findOne({ email });
   if (!user) {
-    return res.status(401).json(new api_response(401, {}, "Email or User not found"));
+    throw new api_error(401, "Email or User not found");
   }
   // Generate token
   const token = user.generate_temporary_token();
@@ -94,26 +102,24 @@ export const user_forgot_password = async_handler(async function (req, res) {
   user.password_reset_token_expiry = token.token_expiry;
   // Send token via email
   await user.save();
-  // Send verification email
-  send_mail({
-    email: user.email,
-    subject: "Forgot Password Email",
-    body: generate_forgot_password_body(
-      user.username,
-      `http://localhost:8000/api/v1/user/reset-password/${token.un_hash_token}`,
-    ),
-  })
-    .then(() => {
-      return res
-        .status(200)
-        .json(new api_response(200, {}, "Forgot password email sent successfully"));
-    })
-    .catch((error) => {
-      return res
-        .status(500)
-        .json(new api_error(500, `Forgot password email did not send ${error}`, error));
+  //Send reset password email
+  try {
+    await send_mail({
+      email: user.email,
+      subject: "Forgot Password Email",
+      body: generate_forgot_password_body(
+        user.username,
+        `http://localhost:8000/api/v1/user/reset-password/${token.un_hash_token}`,
+      ),
     });
+    return res
+      .status(201)
+      .json(new api_response(200, {}, "Forgot password email sent successfully"));
+  } catch (error) {
+    throw new api_error(500, "Forgot password email did not send.", error);
+  }
 });
+
 // Reset password
 export const user_reset_password = async_handler(async function (req, res) {
   // Get token
@@ -136,4 +142,45 @@ export const user_reset_password = async_handler(async function (req, res) {
   await user.save();
   // Send response
   return res.status(200).json(new api_response(200, {}, "Reset password successfully"));
+});
+
+// Reset password
+export const user_access_token = async_handler(async function (req, res) {
+  // Get token
+  const incoming_refresh_token = req.cookies.refresh_token;
+  // Verify token
+  let user_id = null;
+  jwt.verify(incoming_refresh_token, process.env.JWT_REFRESH_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      throw new api_error(401, err.message);
+    }
+    user_id = decoded._id;
+  });
+  // Find user
+  const user = await User.findById(user_id);
+  // Match tokens
+  if (incoming_refresh_token !== user.refresh_token) {
+    throw new api_error(401, "Refresh token is expired or token is expired");
+  }
+  // Generate Access and Refresh Tokens
+  const access_token = user.generate_access_token();
+  const refresh_token = user.generate_refresh_token();
+  // Set access token to cookies
+  const cookie_option_access = {
+    httpOnly: true,
+    secure: true,
+    maxAge: 5 * 60 * 1000,
+  };
+  const cookie_option_refresh = {
+    httpOnly: true,
+    secure: true,
+    maxAge: 24 * 60 * 60 * 1000,
+  };
+  res.cookie("access_token", access_token, cookie_option_access);
+  res.cookie("refresh_token", refresh_token, cookie_option_refresh);
+  // Store refresh token to db
+  user.refresh_token = refresh_token;
+  await user.save();
+  // Send response
+  return res.status(200).json(new api_response(200, {}, "Access token is generated successfully"));
 });

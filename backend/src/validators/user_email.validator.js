@@ -1,7 +1,7 @@
 // Express Validator
 import { body } from "express-validator";
 
-export default function user_forgot_password_validator() {
+export default function user_email_validator() {
   return [
     body("email")
       .isEmail()

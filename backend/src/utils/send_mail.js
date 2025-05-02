@@ -2,7 +2,6 @@
 import nodemailer from "nodemailer";
 // Mailgen
 import mailgen from "mailgen";
-import { api_error } from "./index.js";
 
 export function generate_email_verification_body(username, link) {
   return {

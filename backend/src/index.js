@@ -5,6 +5,7 @@ import { db_handler } from "./utils/index.js";
 // All routes
 import health_check from "./routes/health_check.route.js";
 import user from "./routes/user.route.js";
+import auth from "./routes/auth.route.js";
 // Middleware
 import error_middleware from "./middlewares/error.middleware.js";
 
@@ -14,6 +15,7 @@ const port = process.env.PORT || 8000;
 // All routes
 app.use("/api/v1", health_check);
 app.use("/api/v1/user", user);
+app.use("/api/v1/auth", auth);
 
 // Error middleware
 app.use(error_middleware);

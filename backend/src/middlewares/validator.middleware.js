@@ -3,7 +3,7 @@ import { validationResult } from "express-validator";
 // Utils
 import { api_error } from "../utils/index.js";
 
-export function validator(req, res, next) {
+export default function validator_middleware(req, res, next) {
   const errors = validationResult(req);
 
   if (errors.isEmpty()) {
